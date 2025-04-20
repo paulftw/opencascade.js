@@ -214,6 +214,23 @@ def parse(additionalCppCode = ""):
   )
 
   if len(translationUnit.diagnostics) > 0:
+    print(
+      "Diagnostics:", 
+      "len(includePathArgs):", len(includePathArgs), 
+      "\n",
+      includePathArgs[:10],
+      "\n... %s ...\n" % (len(includePathArgs) - 20),
+      includePathArgs[-10:],
+      "\n",
+      "len(additionalCppCode):", len(additionalCppCode))
+
+    if len(additionalCppCode) > 0:
+      print("First 5 lines of additional cpp code:")
+      for line in additionalCppCode.splitlines()[:5]:
+        print(line)
+      print("Last 5 lines of additional cpp code:")
+      for line in additionalCppCode.splitlines()[-5:]:
+        print(line)
     print("Diagnostic Messages:")
     for d in translationUnit.diagnostics:
       print("  " + d.format())
