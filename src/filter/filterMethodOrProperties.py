@@ -126,6 +126,28 @@ def filterMethodOrProperty(theClass, methodOrProperty):
 
   if methodOrProperty.access_specifier == clang.cindex.AccessSpecifier.PUBLIC and methodOrProperty.kind == clang.cindex.CursorKind.USING_DECLARATION:
     print("Using declarations are not supported! (" + theClass.spelling + ", " + methodOrProperty.spelling + ")")
+    print("theClass parent: ", theClass.semantic_parent)
+    return False
+    if methodOrProperty.referenced:
+      parent_method = methodOrProperty.referenced
+      print("parent method signature: ", parent_method.displayname)
+      print(parent_method.access_specifier)
+      print(parent_method.kind)
+      print(parent_method.result_type.spelling)
+      print(parent_method.type.spelling)
+      print(parent_method.displayname)
+      print(parent_method.is_static_method())
+      print("args")
+      for arg in parent_method.get_arguments():
+        print(f"Argument: {arg.spelling}, Type: {arg.type.spelling}, Default: {arg.default_value if hasattr(arg, 'default_value') else 'None'}")
+      print("args end")
+      print("=====\n")
+    else:
+      print("methodOrProperty has no referenced method")
+
+    # if not parent_method:
+    print("Error: Abort on Using")
+    import sys; sys.exit(1)
     return False
 
   if (
@@ -151,8 +173,8 @@ def filterMethodOrProperty(theClass, methodOrProperty):
     return False
 
   # error: private copy constructor used in this function
-  if theClass.spelling == "BRepClass3d_SolidExplorer" and methodOrProperty.spelling == "GetTree":
-    return False
+  # if theClass.spelling == "BRepClass3d_SolidExplorer" and methodOrProperty.spelling == "GetTree":
+  #   return False
 
   # Error comes in the binding code for "gp_TrsfNLerp", which is a template specialization of "NCollection_Lerp"
   # error: type name requires a specifier or qualifier

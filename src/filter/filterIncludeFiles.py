@@ -10,9 +10,10 @@ def filterIncludeFile(filename):
     return False
 
   # fatal error: 'X11/Xlib.h' file not found
-  if (
-    filename == "InterfaceGraphic.hxx"
-  ):
+  if filename == "InterfaceGraphic.hxx":
+    return False
+
+  if "opengl" in filename.lower():
     return False
 
   # fatal error: 'X11/XWDFile.h' file not found

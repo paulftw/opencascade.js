@@ -86,6 +86,7 @@ def runBuild(build):
         "-DIGNORE_NO_ATOMICS=1",
         "-DOCCT_NO_PLUGINS",
         "-frtti",
+        "-gsource-map=inline",
         "-DHAVE_RAPIDJSON",
         "-Os",
         "-pthread" if os.environ["threading"] == "multi-threaded" else "",

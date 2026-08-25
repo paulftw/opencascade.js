@@ -223,6 +223,21 @@ class EmbindBindings(Bindings):
     return f
 
   def processMethodOrProperty(self, theClass, method, templateDecl = None, templateArgs = None):
+
+    swappedMethod = False
+    if (
+      method.access_specifier == clang.cindex.AccessSpecifier.PUBLIC 
+      and 
+      method.kind == clang.cindex.CursorKind.USING_DECLARATION
+    ):
+      swappedMethod = True
+      print("Handling using declaration: " + method.spelling)
+      using_decl = method.referenced
+      if using_decl is None:
+        print("Cannot find using declaration referenced method")
+        return ""
+      return ""
+
     output = ""
     className = getClassTypeName(theClass, templateDecl)
     if className == "":
@@ -255,12 +270,14 @@ class EmbindBindings(Bindings):
             return args[x[0]].type.spelling.replace(args[x[0]].type.get_pointee().spelling.replace("const ", ""), templateArgs[args[x[0]].type.get_pointee().spelling.replace("const ", "")].spelling)
           else:
             return args[x[0]].type.spelling
+
         def getArgName(x):
           return pick(
             not args[x[0]].spelling == "",
             args[x[0]].spelling,
             f"argNo{str(x[0])}"
           )
+
         def getArgTypeName(type):
           if templateArgs is not None and type.get_pointee().spelling.replace("const ", "") in templateArgs:
             return type.get_pointee().spelling.replace(type.get_pointee().spelling.replace("const ", ""), templateArgs[type.get_pointee().spelling.replace("const ", "")].spelling)
@@ -281,6 +298,7 @@ class EmbindBindings(Bindings):
             f"emscripten::val {getArgName(x)}",
             f"{replaceTemplateArgs(x)} {getArgName(x)}",
           ), enumerate(argsNeedingWrapper)))
+
         def generateGetReferenceValue(x):
           if x[1] and not isCString(args[x[0]].type):
             return (
@@ -296,11 +314,13 @@ class EmbindBindings(Bindings):
             )
           else:
             return ""
+
         def generateUpdateReferenceValue(x):
           if x[1] and not isCString(args[x[0]].type):
             return  f"{indent(4)}updateReferenceValue<{getArgTypeName(args[x[0]].type)}>({getArgName(x)}, ref_{getArgName(x)});\n"
           else:
             return ""
+
         def generateInvocationArgs(x):
           if x[1]:
             if not isCString(args[x[0]].type):
@@ -312,6 +332,7 @@ class EmbindBindings(Bindings):
                 return f"{getArgName(x)}.isNull() ? nullptr : {getArgName(x)}.as<std::string>().c_str()"
           else:
             return getArgName(x)
+            
         resultTypeSpelling = \
           pick(returnNeedsWrapper, "emscripten::val", self.getTypedefedTemplateTypeAsString(method.result_type.spelling, templateDecl, templateArgs))
         functionBindingHead = \
@@ -401,6 +422,8 @@ class EmbindBindings(Bindings):
         functionCommand = "function"
 
       output += f"{indent(2)}.{functionCommand}(\"{method.spelling}{overloadPostfix}\",{functionBinding}, allow_raw_pointers())\n"
+      print("Binding method: " + className + "::" + method.spelling + overloadPostfix)
+      print("result: " + output)
     if method.access_specifier == clang.cindex.AccessSpecifier.PUBLIC and method.kind == clang.cindex.CursorKind.FIELD_DECL:
       if method.type.kind == clang.cindex.TypeKind.CONSTANTARRAY:
         print("Cannot handle array properties, skipping " + className + "::" + method.spelling)

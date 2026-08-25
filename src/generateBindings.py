@@ -67,9 +67,16 @@ def filterEnums(child, customBuild):
   )
 
 def processChildren(tuInfo: TuInfo, children, extension: str, filterFunction: Callable[[any], bool], processFunction: Callable[[any, any], str], preamble: str, customBuild: bool):
+  ctr = 0
+  N = len(children)
   for child in children:
+    ctr += 1
+
     if not filterFunction(child, customBuild) or child.spelling == "":
       continue
+
+    if ctr % 100 == 0:
+      print("!!! " + str(ctr) + "/" + str(N) + " children")
 
     relOcFileName: str = child.extent.start.file.name.replace(occtBasePath, "")
     mkdirp(buildDirectory + "/bindings/" + os.path.dirname(relOcFileName))
@@ -80,8 +87,10 @@ def processChildren(tuInfo: TuInfo, children, extension: str, filterFunction: Ca
       print("Processing " + child.spelling)
       try:
         output = processFunction(tuInfo, preamble, child)
+        mkdirp(os.path.dirname(filename))
         bindingsFile = open(filename, "w")
         bindingsFile.write(output)
+        print("Generated " + filename)
       except SkipException as e:
         print(str(e))
     else:

@@ -25,12 +25,15 @@ additionalIncludePaths = [
 includePathArgs = \
   list(dict.fromkeys(map(lambda x: "-I" + x, ocIncludePaths))) + \
   list(map(lambda x: "-I" + x, [
+    "/emsdk/upstream/emscripten/system/lib/libc/musl/arch/emscripten/",
     "/emsdk/upstream/emscripten/system/include/",
-    "/usr/lib/gcc/x86_64-linux-gnu/8/include-fixed/",
     "/emsdk/upstream/emscripten/system/lib/libcxx/include/",
+    "/src/include/opencascade/",
     "/emsdk/upstream/lib/clang/" + next(os.walk('/emsdk/upstream/lib/clang/'))[1][0] + "/include/",
     "/emsdk/upstream/emscripten/system/lib/libcxx/include/__support/newlib/"
   ])) + \
-  list(map(lambda x: "-I" + x, ocIncludePaths + additionalIncludePaths))
+  list(map(lambda x: "-I" + x, additionalIncludePaths))
+
+print("Include paths:", includePathArgs)
   
 ocIncludeStatements = os.linesep.join(map(lambda x: "#include \"" + os.path.basename(x) + "\"", list(sorted(ocIncludeFiles))))

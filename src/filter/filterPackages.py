@@ -72,7 +72,7 @@ def filterPackages(packageName):
 
       ## Toolkit TKOpenGl
       ## Toolkit TKOpenGles
-      # "OpenGl",
+      "OpenGl",
 
       ## Toolkit TKService
       # "Aspect",
@@ -98,7 +98,7 @@ def filterPackages(packageName):
       # "StdSelect",
       # "V3d",
 
-    "XBRepMesh", # This leads to a naming clas with BRepMesh
+    "XBRepMesh", # This leads to a naming clash with BRepMesh
   ]:
     return False
 
