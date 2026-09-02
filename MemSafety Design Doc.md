@@ -55,7 +55,7 @@ spit `theMethod(...whatever...): Leaking<T>;`
 
 - [X] **4. Declare `Leaking<T>` exactly once.** In `yaml_build.py`, right after `typescriptDefinitionOutput = ""` (~line 1119), append `export type Leaking<T> = { readonly __leaking: T };\n\n` (opaque brand — no member passthrough). Verify: `grep -c "type Leaking" <generated .d.ts>` == 1.
 
-- [ ] **5. Wrap return types — two different decisions, not one.**
+- [X] **5. Wrap return types — two different decisions, not one.**
 
   **S0 (plain, non-RBV) case — per-method, at the 3 *final*-emission call sites only, never inside `getTypescriptDefFromResultType` itself** (that function also builds the inner `returnValue:` field text at `bindings.py:3925`/`3959` — wrapping there would double-wrap an envelope field). The 3 final sites are `_render_synthesized_base_signature` (`3654`), `processMethodOrProperty` (`4132`), `_ts_args_and_return` (`4259`). At each: after computing `returnType` from `getTypescriptDefFromResultType(method.result_type, ...)`, wrap it as `Leaking<{returnType}>` iff `classify_return_cleanability(method.result_type) == CLEANABLE` (skip on `EITHER`/`NON_CLEANABLE`). This is safe to decide per-method, with no group-wide lookup, *because* step 2 already raised earlier in the pipeline if the enclosing overload group were inconsistent — by the time we reach these sites that invariant is already guaranteed, not something step 5 has to re-derive. Still genuinely per-method, not per-group: one name-group can legally mix an `EITHER` overload (e.g. `void`) with a `CLEANABLE` one (step 2 ignores `EITHER` when checking), so each line's own type decides its own wrap, not a single group-wide verdict applied uniformly.
 
