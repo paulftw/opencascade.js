@@ -21,6 +21,7 @@ NCOLLECTION_CONTAINERS = frozenset({
     "NCollection_Vector", "NCollection_DynamicArray",
     "NCollection_DoubleMap",
     "NCollection_Shared",
+    "NCollection_LinearVector",
 })
 
 CONTAINER_ALIASES = {

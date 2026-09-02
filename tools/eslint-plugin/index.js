@@ -11,6 +11,7 @@
  */
 
 import { jsdocQualityRule } from './jsdoc-quality.js';
+import { requireFrWrapperRule } from './require-fr-wrapper.js';
 import { requireUsingOnDisposableRule } from './require-using-on-disposable.js';
 
 /** @type {Plugin} */
@@ -22,6 +23,7 @@ const plugin = {
   rules: {
     'jsdoc-quality': jsdocQualityRule,
     'require-using-on-disposable': requireUsingOnDisposableRule,
+    'require-fr-wrapper': requireFrWrapperRule,
   },
 };
 

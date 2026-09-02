@@ -152,9 +152,21 @@ def process_class(b, theClass, templateDecl=None, templateArgs=None):
 
   output += "}\n\n"
 
-  nonPublicDestructor = any(x.kind == clang.cindex.CursorKind.DESTRUCTOR and not x.access_specifier == clang.cindex.AccessSpecifier.PUBLIC for x in theClass.get_children())
-  placementDelete = next((x for x in theClass.get_children() if x.spelling == "operator delete" and len(list(x.get_arguments())) == 2), None) is not None
-  if nonPublicDestructor or placementDelete:
+  # MemSafety MOD 0! original code was:
+  #
+  # nonPublicDestructor = any(x.kind == clang.cindex.CursorKind.DESTRUCTOR and not x.access_specifier == clang.cindex.AccessSpecifier.PUBLIC for x in theClass.get_children())
+  # placementDelete = next((x for x in theClass.get_children() if x.spelling == "operator delete" and len(list(x.get_arguments())) == 2), None) is not None
+  # if nonPublicDestructor or placementDelete:
+  #
+  # But the reason for placementDelete is not documented,
+  # and it prevents destruction of classes that inherit it from Standard_Transient, 
+  # which makes some basic value objects undeletable.
+  nonPublicDestructor = any(
+    x.kind == clang.cindex.CursorKind.DESTRUCTOR
+    and x.access_specifier != clang.cindex.AccessSpecifier.PUBLIC
+    for x in theClass.get_children()
+  )
+  if nonPublicDestructor:
     output += "namespace emscripten { namespace internal { template<> void raw_destructor<" + classCpp + ">(" + classCpp + "* ptr) { /* do nothing */ } } }\n"
   return output
 

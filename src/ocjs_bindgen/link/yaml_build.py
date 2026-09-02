@@ -1307,6 +1307,10 @@ def main():
     # generated `.d.ts` semantically valid (zero TS2304/TS2552 diagnostics).
     declared_names = {x["export"] for x in deduped_exports}
     declared_names.update(named_type_exports)
+    # `Leaking` itself isn't in the text yet (its preamble is prepended
+    # after this rewrite pass, see below) but every real fragment already
+    # references `Leaking<Foo>` at every cleanable-return method.
+    declared_names.add("Leaking")
     declared_names.update(
       re.findall(r"^export\s+(?:declare\s+)?(?:abstract\s+)?class\s+([A-Za-z_][A-Za-z0-9_]*)", typescriptDefinitionOutput, re.MULTILINE)
     )
@@ -1324,6 +1328,12 @@ def main():
     )
     post_rewrite_unknown_count = _count_unknown_tokens(typescriptDefinitionOutput)
     rewrites_to_unknown = max(0, post_rewrite_unknown_count - pre_rewrite_unknown_count)
+
+    # MemSafety step 4 — prepended to `typescriptDefinitionOutput`
+    # after `_replace_undeclared_with_unknown` runs below, and prepended
+    # only once, right before the file is written.
+    leakingPreamble = "export type Leaking<T> = { readonly __leaking: T };\n\n"
+    typescriptDefinitionOutput = leakingPreamble + typescriptDefinitionOutput
 
     _enforce_strict_types_gate(
       typescriptDefinitionOutput=typescriptDefinitionOutput,

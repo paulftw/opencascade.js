@@ -17,6 +17,10 @@ from ocjs_bindgen.codegen import dispatch as _dispatch
 # still reference them at module scope.
 from ocjs_bindgen.codegen import rbv as _rbv
 
+# MemSafety step 1 — return-type cleanability classification lives in
+# ocjs_bindgen.codegen.result_marker.
+from ocjs_bindgen.codegen import result_marker as _result_marker
+
 # Phase 2 — per-row val-with-default emission for the trailing-default
 # matrix rows that policy rule 9 routes to ``emscripten::val``
 # (currently rows 33 + 34 — wire-in for rows 1, 2, 7, 23, 30, 37 is
@@ -3648,6 +3652,8 @@ class TypescriptBindings(Bindings):
           for i, arg in enumerate(allArgs)
         )
         returnType = self.getTypescriptDefFromResultType(method.result_type, None, None)
+        if _result_marker.classify_return_cleanability(method.result_type) == _result_marker.ReturnCleanability.CLEANABLE:
+          returnType = f"Leaking<{returnType}>"
     except Exception:
       return ""
     kept_names = [self._argname(arg, i) for i, arg in enumerate(allArgs)
@@ -3939,7 +3945,16 @@ class TypescriptBindings(Bindings):
           emitted.add(derived_name)
         if needsDispose:
           fields.append("[Symbol.dispose](): void")
-        return "{ " + "; ".join(fields) + " }"
+        field_types = (
+          [method.result_type]
+          + [a.type for _, a in outputArgs]
+          + [base_a.type for _, base_a in base_output]
+        )
+        _result_marker.assert_no_non_cleanable_fields(field_types, templateArgs, self.tuInfo.classDict)
+        envelope = "{ " + "; ".join(fields) + " }"
+        if _result_marker.any_cleanable(field_types, templateArgs, self.tuInfo.classDict):
+          envelope = f"Leaking<{envelope}>"
+        return envelope
     else:
       derived_output_names = [self._argname(a, i) for i, a in outputArgs]
 
@@ -3958,7 +3973,12 @@ class TypescriptBindings(Bindings):
     if needsDispose:
       fields.append("[Symbol.dispose](): void")
 
-    return "{ " + "; ".join(fields) + " }"
+    field_types = [method.result_type] + [a.type for _, a in outputArgs]
+    _result_marker.assert_no_non_cleanable_fields(field_types, templateArgs, self.tuInfo.classDict)
+    envelope = "{ " + "; ".join(fields) + " }"
+    if _result_marker.any_cleanable(field_types, templateArgs, self.tuInfo.classDict):
+      envelope = f"Leaking<{envelope}>"
+    return envelope
 
   def _outputArityIsUnambiguous(self, theClass, method):
     """True iff a short call omitting this method's trailing primitive outputs
@@ -4118,6 +4138,11 @@ class TypescriptBindings(Bindings):
           parts.append(rendered)
         args = ", ".join(parts)
         returnType = self.getTypescriptDefFromResultType(method.result_type, templateDecl, templateArgs)
+        if (
+          _result_marker.classify_return_cleanability(method.result_type, templateArgs, self.tuInfo.classDict)
+          == _result_marker.ReturnCleanability.CLEANABLE
+        ):
+          returnType = f"Leaking<{returnType}>"
 
       className = getClassTypeName(theClass, templateDecl)
       tplName = theClass.spelling if templateDecl is not None else None
@@ -4176,6 +4201,42 @@ class TypescriptBindings(Bindings):
     if not bindable:
       return output
 
+    # Kept arity (post output-param stripping) — the actual grouping key for
+    # what can end up sharing one emitted TS declaration line. Different
+    # arities never collapse into a single line/shared return type (each
+    # gets its own independently-typed overload signature), so this is also
+    # the correct scope for the MemSafety step-2 check below, not the whole
+    # name-group.
+    def _kept_arity(m):
+      return sum(1 for a in m.get_arguments() if not shouldStripParam(a.type, m))
+
+    # MemSafety step 2 — within one *kept-arity* group, must not mix
+    # cleanable (Foo, Foo&) and non-cleanable (Foo*) returns under one
+    # combined TS declaration. EITHER (void/undefined/primitive) is ignored
+    # — it's compatible with either bucket. Different arities are allowed to
+    # differ freely (e.g. three same-arity map lookups returning a non-owned
+    # pointer alongside a differently-aritied overload that resolves/returns
+    # a fresh owned value — see BRepGraph_LayerHistory::FindModified).
+    # Runs on each overload's raw C++ result_type, before RBV touches
+    # `bindable` at all.
+    by_arity_for_check = defaultdict(list)
+    for m in bindable:
+      by_arity_for_check[_kept_arity(m)].append(m)
+    for arity_group in by_arity_for_check.values():
+      cleanabilities = {
+        _result_marker.classify_return_cleanability(m.result_type, templateArgs, self.tuInfo.classDict)
+        for m in arity_group
+      } - {_result_marker.ReturnCleanability.EITHER}
+      if len(cleanabilities) > 1:
+        signatures = []
+        for m in arity_group:
+          args = ", ".join(a.type.spelling for a in m.get_arguments())
+          signatures.append(f"{m.result_type.spelling} {theClass.spelling}::{m.spelling}({args})")
+        raise Exception(
+          "Mixed cleanable/non-cleanable return overload group is unsupported:\n  "
+          + "\n  ".join(signatures)
+        )
+
     bindable = _rbv.select_js_effective_overload_survivors(
       self, bindable, templateDecl, templateArgs
     )
@@ -4187,9 +4248,6 @@ class TypescriptBindings(Bindings):
     # overloads that all become `Show()` in TS) are routed to the _N suffix
     # branch and don't produce structurally identical, conflicting overloads
     # that fail the base-class assignability check (TS2416).
-    def _kept_arity(m):
-      return sum(1 for a in m.get_arguments() if not shouldStripParam(a.type, m))
-
     by_arity = defaultdict(list)
     for m in bindable:
       by_arity[_kept_arity(m)].append(m)
@@ -4227,6 +4285,11 @@ class TypescriptBindings(Bindings):
         args = ", ".join(self.getTypescriptDefFromArgWithName(arg, effective_names[i], templateDecl, templateArgs)
                           for i, arg in enumerate(allArgs))
         returnType = self.getTypescriptDefFromResultType(m.result_type, templateDecl, templateArgs)
+        if (
+          _result_marker.classify_return_cleanability(m.result_type, templateArgs, self.tuInfo.classDict)
+          == _result_marker.ReturnCleanability.CLEANABLE
+        ):
+          returnType = f"Leaking<{returnType}>"
       return args, returnType
 
     def _kept_names(m):

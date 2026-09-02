@@ -3,7 +3,7 @@
 Maps standard library template types (``std::vector``, ``std::shared_ptr``,
 ``std::pair``, ``std::optional``, ``std::array``, ``std::initializer_list``,
 ``std::basic_string`` / ``std::*_string_view``) plus a handful of OCCT
-adapters (``NCollection_LinearVector``, ``NCollection_UtfString``) to their
+adapters (``NCollection_UtfString``) to their
 TypeScript equivalents. Mirrors the legacy
 ``TypescriptBindings._resolve_stl_type`` and ``_is_std_decl`` line-for-line
 so byte-parity is preserved.
@@ -48,11 +48,6 @@ def resolve_stl_type(self, container, clang_type, templateDecl=None, templateArg
 
     if container == "vector":
         if is_std_decl(t.get_declaration()) and numArgs >= 1:
-            inner = self.resolve_type(t.get_template_argument_type(0), templateDecl, templateArgs)
-            return f"{inner}[]"
-
-    if container == "NCollection_LinearVector":
-        if numArgs >= 1:
             inner = self.resolve_type(t.get_template_argument_type(0), templateDecl, templateArgs)
             return f"{inner}[]"
 

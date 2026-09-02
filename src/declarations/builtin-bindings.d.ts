@@ -25,49 +25,49 @@ export declare class TopoDS {
    * @param shape - The shape to cast (must have `ShapeType() === TopAbs_EDGE`).
    * @returns The same shape typed as `TopoDS_Edge`.
    */
-  static Edge(shape: TopoDS_Shape): TopoDS_Edge;
+  static Edge(shape: TopoDS_Shape): Leaking<TopoDS_Edge>;
   /**
    * Downcast a generic shape to a wire.
    *
    * @param shape - The shape to cast (must have `ShapeType() === TopAbs_WIRE`).
    * @returns The same shape typed as `TopoDS_Wire`.
    */
-  static Wire(shape: TopoDS_Shape): TopoDS_Wire;
+  static Wire(shape: TopoDS_Shape): Leaking<TopoDS_Wire>;
   /**
    * Downcast a generic shape to a face.
    *
    * @param shape - The shape to cast (must have `ShapeType() === TopAbs_FACE`).
    * @returns The same shape typed as `TopoDS_Face`.
    */
-  static Face(shape: TopoDS_Shape): TopoDS_Face;
+  static Face(shape: TopoDS_Shape): Leaking<TopoDS_Face>;
   /**
    * Downcast a generic shape to a vertex.
    *
    * @param shape - The shape to cast (must have `ShapeType() === TopAbs_VERTEX`).
    * @returns The same shape typed as `TopoDS_Vertex`.
    */
-  static Vertex(shape: TopoDS_Shape): TopoDS_Vertex;
+  static Vertex(shape: TopoDS_Shape): Leaking<TopoDS_Vertex>;
   /**
    * Downcast a generic shape to a shell.
    *
    * @param shape - The shape to cast (must have `ShapeType() === TopAbs_SHELL`).
    * @returns The same shape typed as `TopoDS_Shell`.
    */
-  static Shell(shape: TopoDS_Shape): TopoDS_Shell;
+  static Shell(shape: TopoDS_Shape): Leaking<TopoDS_Shell>;
   /**
    * Downcast a generic shape to a solid.
    *
    * @param shape - The shape to cast (must have `ShapeType() === TopAbs_SOLID`).
    * @returns The same shape typed as `TopoDS_Solid`.
    */
-  static Solid(shape: TopoDS_Shape): TopoDS_Solid;
+  static Solid(shape: TopoDS_Shape): Leaking<TopoDS_Solid>;
   /**
    * Downcast a generic shape to a compound.
    *
    * @param shape - The shape to cast (must have `ShapeType() === TopAbs_COMPOUND`).
    * @returns The same shape typed as `TopoDS_Compound`.
    */
-  static Compound(shape: TopoDS_Shape): TopoDS_Compound;
+  static Compound(shape: TopoDS_Shape): Leaking<TopoDS_Compound>;
 }
 
 /**
