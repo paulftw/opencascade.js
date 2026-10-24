@@ -6,31 +6,34 @@
  * `classify_return_cleanability` classified the same way. `fr()` is the one
  * place that registers a handle for finalization tracking — anything else
  * never reaches it.
- *
- * @typedef {import('eslint').Rule.RuleModule} RuleModule
- * @typedef {import('estree').Node} EstreeNode
- * @typedef {import('estree').NewExpression} NewExpression
- * @typedef {import('estree').CallExpression} CallExpression
  */
+import type { Rule } from 'eslint';
+import type { CallExpression, Node as EstreeNode, NewExpression } from 'estree';
+import type * as ts from 'typescript';
 
-const BINDINGS_DECLARATION_FILE = /opencascade_single\.d\.ts$/;
+// Matches both the raw per-variant output (`opencascade_single.d.ts`,
+// `opencascade_multi.d.ts`, used inside this repo) and `types.d.ts`, where
+// `libcascade assemble` merges shared declarations for the published
+// package — consumers only ever see the latter.
+const BINDINGS_DECLARATION_FILE = /(?:opencascade_(?:single|multi)|types)\.d\.ts$/;
 
 const FR_WRAPPER_NAME = 'fr';
+
+type NodeWithParent = EstreeNode & { parent?: EstreeNode };
 
 /**
  * Walk past casts/assertions that don't change runtime identity, to find
  * the expression's true syntactic parent for wrapper-check purposes (e.g.
  * `fr(new oc.Foo() as Foo)`).
- *
- * @param {EstreeNode & { parent?: EstreeNode }} node
- * @returns {EstreeNode}
  */
-function unwrapCasts(node) {
-  let current = node;
+function unwrapCasts(node: NodeWithParent): EstreeNode {
+  let current: NodeWithParent = node;
   while (current.parent) {
-    const { parent } = /** @type {{ parent: EstreeNode & { type: string; expression?: EstreeNode } }} */ (
-      /** @type {unknown} */ (current)
-    );
+    // TS-specific node types (`TSAsExpression`, etc.) aren't part of plain
+    // `estree`'s `Node.type` union, so this widens through `unknown` rather
+    // than intersecting — an intersection would keep the narrower union and
+    // make the comparisons below a compile error.
+    const parent = current.parent as unknown as { type: string; expression?: EstreeNode };
     if (
       (parent.type === 'TSAsExpression' ||
         parent.type === 'TSTypeAssertion' ||
@@ -38,7 +41,7 @@ function unwrapCasts(node) {
         parent.type === 'TSNonNullExpression') &&
       parent.expression === current
     ) {
-      current = /** @type {EstreeNode & { parent?: EstreeNode }} */ (parent);
+      current = parent as unknown as NodeWithParent;
       continue;
     }
     break;
@@ -49,24 +52,21 @@ function unwrapCasts(node) {
 /**
  * True iff `node`'s (unwrapped) syntactic parent is a call to the `fr(...)`
  * wrapper with `node` as its sole argument.
- *
- * @param {EstreeNode & { parent?: EstreeNode }} node
- * @returns {boolean}
  */
-function isWrappedByFr(node) {
+function isWrappedByFr(node: NodeWithParent): boolean {
   const outer = unwrapCasts(node);
-  const { parent } = /** @type {{ parent?: EstreeNode & {
-    type: string;
-    callee?: EstreeNode & { type?: string; name?: string };
-    arguments?: EstreeNode[];
-  } }} */ (/** @type {unknown} */ (outer));
+  const parent = (outer as NodeWithParent).parent as
+    | (EstreeNode & {
+        type: string;
+        callee?: EstreeNode & { type?: string; name?: string };
+        arguments?: EstreeNode[];
+      })
+    | undefined;
   if (!parent || parent.type !== 'CallExpression') {
     return false;
   }
   return (
-    parent.callee?.type === 'Identifier' &&
-    parent.callee.name === FR_WRAPPER_NAME &&
-    parent.arguments?.[0] === outer
+    parent.callee?.type === 'Identifier' && parent.callee.name === FR_WRAPPER_NAME && parent.arguments?.[0] === outer
   );
 }
 
@@ -76,11 +76,8 @@ function isWrappedByFr(node) {
  * required. Used both for class symbols (the `new X()` check) and for the
  * `Leaking` alias symbol itself, so an unrelated same-named `Leaking<T>`
  * declared elsewhere in the program can't be mistaken for ours.
- *
- * @param {import('typescript').Symbol | undefined} symbol
- * @returns {boolean}
  */
-function isDeclaredInBindingsDts(symbol) {
+function isDeclaredInBindingsDts(symbol: ts.Symbol | undefined): boolean {
   const declarations = symbol?.getDeclarations?.() ?? symbol?.declarations;
   if (!declarations || declarations.length === 0) {
     return false;
@@ -91,11 +88,8 @@ function isDeclaredInBindingsDts(symbol) {
 /**
  * True iff `type` is declared in the generated bindings `.d.ts` — i.e. it's
  * one of "all classes from this .d.ts", with no per-class marking required.
- *
- * @param {import('typescript').Type} type
- * @returns {boolean}
  */
-function isFromBindingsDts(type) {
+function isFromBindingsDts(type: ts.Type): boolean {
   return isDeclaredInBindingsDts(type.getSymbol());
 }
 
@@ -107,16 +101,22 @@ function isFromBindingsDts(type) {
  * show up on `aliasSymbol`. Matching the declaration site, not just the
  * name `"Leaking"`, avoids collision with an unrelated same-named alias
  * declared elsewhere in the program.
- *
- * @param {import('typescript').Type} type
- * @returns {boolean}
  */
-function isLeakingType(type) {
+function isLeakingType(type: ts.Type): boolean {
   return type.aliasSymbol?.getName() === 'Leaking' && isDeclaredInBindingsDts(type.aliasSymbol);
 }
 
-/** @type {RuleModule} */
-export const requireFrWrapperRule = {
+/**
+ * `parserServices` is set up by typescript-eslint when
+ * `parserOptions.project` is configured. Shape isn't part of `@types/eslint`
+ * — typescript-eslint attaches it dynamically to the rule context.
+ */
+type ParserServicesLike = {
+  program?: ts.Program;
+  esTreeNodeToTSNodeMap?: Map<unknown, ts.Node>;
+};
+
+export const requireFrWrapperRule: Rule.RuleModule = {
   meta: {
     type: 'problem',
     docs: {
@@ -125,33 +125,26 @@ export const requireFrWrapperRule = {
     messages: {
       missingFrConstruct:
         '`new {{typeText}}(...)` must be wrapped: `fr(new {{typeText}}(...))`. Construction always transfers ownership to the caller.',
-      missingFrLeaking:
-        'This call returns `{{typeText}}`, which must be passed through `fr(...)`.',
+      missingFrLeaking: 'This call returns `{{typeText}}`, which must be passed through `fr(...)`.',
     },
     schema: [],
   },
   create(context) {
-    // `parserServices` is set up by typescript-eslint when
-    // `parserOptions.project` is configured. Fall back to a no-op if the
-    // consumer hasn't enabled type-aware linting.
-    const services =
-      /** @type {{ sourceCode?: { parserServices?: unknown }; parserServices?: unknown }} */ (
-        /** @type {unknown} */ (context)
-      ).sourceCode?.parserServices ??
-      /** @type {{ parserServices?: unknown }} */ (/** @type {unknown} */ (context)).parserServices;
-    const { program, esTreeNodeToTSNodeMap } =
-      /** @type {{ program?: import('typescript').Program; esTreeNodeToTSNodeMap?: Map<unknown, import('typescript').Node> }} */ (
-        services ?? {}
-      );
+    // Fall back to a no-op if the consumer hasn't enabled type-aware linting.
+    const contextWithServices = context as Rule.RuleContext & {
+      sourceCode?: { parserServices?: ParserServicesLike };
+      parserServices?: ParserServicesLike;
+    };
+    const services = contextWithServices.sourceCode?.parserServices ?? contextWithServices.parserServices;
+    const { program, esTreeNodeToTSNodeMap } = services ?? {};
     if (!program || !esTreeNodeToTSNodeMap) {
       return {};
     }
     const checker = program.getTypeChecker();
 
     return {
-      /** @param {NewExpression} node */
-      NewExpression(node) {
-        const esNode = /** @type {EstreeNode & { parent?: EstreeNode }} */ (/** @type {unknown} */ (node));
+      NewExpression(node: NewExpression) {
+        const esNode = node as NodeWithParent;
         if (isWrappedByFr(esNode)) {
           return;
         }
@@ -164,15 +157,14 @@ export const requireFrWrapperRule = {
           return;
         }
         context.report({
-          node: /** @type {import('eslint').Rule.Node} */ (/** @type {unknown} */ (node)),
+          node: node as unknown as Rule.Node,
           messageId: 'missingFrConstruct',
           data: { typeText: checker.typeToString(type) },
         });
       },
 
-      /** @param {CallExpression} node */
-      CallExpression(node) {
-        const esNode = /** @type {EstreeNode & { parent?: EstreeNode }} */ (/** @type {unknown} */ (node));
+      CallExpression(node: CallExpression) {
+        const esNode = node as NodeWithParent;
         if (isWrappedByFr(esNode)) {
           return;
         }
@@ -186,7 +178,7 @@ export const requireFrWrapperRule = {
         }
         const innerType = type.aliasTypeArguments?.[0];
         context.report({
-          node: /** @type {import('eslint').Rule.Node} */ (/** @type {unknown} */ (node)),
+          node: node as unknown as Rule.Node,
           messageId: 'missingFrLeaking',
           data: {
             typeText: checker.typeToString(type),

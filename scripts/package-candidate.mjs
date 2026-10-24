@@ -42,6 +42,12 @@ export const PACKAGE_FILES = [
   'LICENSE.OCCT-Exception',
   'README.md',
   'package.json',
+  'dist-memsafety/src/runtime/fr.js',
+  'dist-memsafety/src/runtime/fr.d.ts',
+  'dist-memsafety/tools/eslint-plugin/require-fr-wrapper.js',
+  'dist-memsafety/tools/eslint-plugin/require-fr-wrapper.d.ts',
+  'dist-memsafety/tools/eslint-plugin/memsafety.js',
+  'dist-memsafety/tools/eslint-plugin/memsafety.d.ts',
   ...DIST_FILES.map((file) => `dist/${file}`),
 ].sort();
 

@@ -59,6 +59,7 @@ docs-site/data.backup-*/
 
 # Build output
 /dist/
+/dist-memsafety/
 packages/toolchain/dist/
 
 # Docker build-flow test scratch (per-test workdirs + manual trial dir)

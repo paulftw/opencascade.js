@@ -11,7 +11,7 @@
  */
 
 import { jsdocQualityRule } from './jsdoc-quality.js';
-import { requireFrWrapperRule } from './require-fr-wrapper.js';
+import { requireFrWrapperRule } from './require-fr-wrapper.ts';
 import { requireUsingOnDisposableRule } from './require-using-on-disposable.js';
 
 /** @type {Plugin} */

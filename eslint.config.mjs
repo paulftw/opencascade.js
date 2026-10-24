@@ -19,6 +19,7 @@ export default tseslint.config(
       'build-configs/*.d.ts',
       'dist/**',
       '**/dist/**',
+      'dist-memsafety/**',
       '**/.next/**',
       'packages/toolchain/dist/**',
       'deps/**',

@@ -63,9 +63,23 @@
     "./multi/init": {
       "types": "./dist/init.multi.d.ts",
       "default": "./dist/init.multi.js"
+    },
+    "./memsafety": {
+      "types": "./dist-memsafety/src/runtime/fr.d.ts",
+      "default": "./dist-memsafety/src/runtime/fr.js"
+    },
+    "./memsafety/eslint": {
+      "types": "./dist-memsafety/tools/eslint-plugin/memsafety.d.ts",
+      "default": "./dist-memsafety/tools/eslint-plugin/memsafety.js"
     }
   },
   "files": [
+    "dist-memsafety/src/runtime/fr.js",
+    "dist-memsafety/src/runtime/fr.d.ts",
+    "dist-memsafety/tools/eslint-plugin/require-fr-wrapper.js",
+    "dist-memsafety/tools/eslint-plugin/require-fr-wrapper.d.ts",
+    "dist-memsafety/tools/eslint-plugin/memsafety.js",
+    "dist-memsafety/tools/eslint-plugin/memsafety.d.ts",
     "dist/types.d.ts",
     "dist/init.js",
     "dist/init.d.ts",
@@ -101,6 +115,7 @@
   "scripts": {
     "release:prepare": "node scripts/prepare-release.mjs",
     "build:toolchain": "npm run build --workspace=@libcascade/toolchain",
+    "build:memsafety": "tsc --project tsconfig.memsafety.json",
     "generate:toolchain": "node packages/toolchain/scripts/generate-toolchain.mjs",
     "generate:brand": "node scripts/generate-logo.mjs && node scripts/generate-banner.mjs",
     "generate:brand:check": "node scripts/generate-logo.mjs --check && node scripts/generate-banner.mjs --check",
@@ -124,8 +139,8 @@
     "nx": "22.5.2",
     "semver": "^7.7.2",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.0",
     "typescript-eslint": "^8.56.1",
+    "vitest": "^4.1.0",
     "yaml": "^2.8.2"
   }
 }

@@ -1,5 +1,5 @@
 import init from '../../dist/opencascade_single.js';
-import { fr } from '../../src/runtime/fr.js';
+import { fr } from '../../src/runtime/fr.ts';
 
 // Full cut + tessellation round trip, disposed entirely through fr()'s
 // FinalizationRegistry backstop -- no explicit .delete() anywhere, matching

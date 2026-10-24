@@ -1,5 +1,5 @@
 import init from '../dist/opencascade_single.js';
-import { fr } from '../src/runtime/fr.js';
+import { fr } from '../src/runtime/fr.ts';
 
 const iterations = Number(process.argv[2] ?? 100_000);
 const batchSize = Number(process.argv[3] ?? 10_000);
