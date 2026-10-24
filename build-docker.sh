@@ -2,13 +2,13 @@
 # Builds the wasm variants from an image built out of this checkout, then
 # assembles dist/ and dist-memsafety/, which the libcascade package exports.
 # CONTAINER_ENGINE=podman selects podman; the default is docker.
-# LIBCASCADE_VARIANTS limits the variants; assemble needs every variant that
+# LIBCASCADE_VARIANTS selects the variants; assemble needs every variant that
 # libcascade.config.ts declares.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENGINE="${CONTAINER_ENGINE:-docker}"
-VARIANTS="${LIBCASCADE_VARIANTS:-single multi}"
+VARIANTS="${LIBCASCADE_VARIANTS:-single}"
 cd "$REPO_DIR"
 
 npm ci --ignore-scripts --no-audit --no-fund

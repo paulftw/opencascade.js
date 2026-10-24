@@ -4532,20 +4532,5 @@ export default defineBuild({
   },
   compilerFlags: { exceptions: 'wasm', noEntry: true, simd: true, optimize: 'O3' },
   rawFlags: ['--emit-symbol-map'],
-  variants: [
-    { name: 'single' },
-    {
-      name: 'multi',
-      // `requires: ['threads']` is inferred from this flag, so it is not
-      // declared; `-pthread` replaces the deprecated `USE_PTHREADS` setting,
-      // which emcc keeps only as a legacy alias of exactly this flag.
-      compilerFlags: { threads: true },
-      settings: {
-        EVAL_CTORS: null,
-        PTHREAD_POOL_SIZE: 'navigator.hardwareConcurrency',
-        SHARED_MEMORY: true,
-        ENVIRONMENT: ['web', 'worker', 'node'],
-      },
-    },
-  ],
+  variants: [{ name: 'single' }],
 });
